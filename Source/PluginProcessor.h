@@ -9,7 +9,7 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "FFTConvolver-non-uniform/FFTConvolver.h"
+#include "FFTConvolver-non-uniform/TwoStageFFTConvolver.h"
 
 //==============================================================================
 /**
@@ -60,18 +60,25 @@ public:
 	void updateMix(float val);
 
 private:
+	float mBlockSize{ 0 };
+	float mSampleRate{ 0 };
+
 	juce::File impulseResponseFile;
-	fftconvolver::FFTConvolver conv[4];
+	fftconvolver::TwoStageFFTConvolver conv[4];
 	juce::AudioFormatManager audioFormatManager;
 	juce::AudioSampleBuffer irBuffer;
 	juce::AudioSampleBuffer wetBuffer;
-	float mBlockSize;
 	bool hasInitialized[4]{ false };
 
 	float* mix{ nullptr };
 	juce::LinearSmoothedValue<float> smoothGain;
 
 	juce::AudioProcessorValueTreeState params;
+
+	juce::File irFile;
+	void JamescabinreverbAudioProcessor::loadIR(juce::File file);
+
+	bool isInitialised();
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessor)

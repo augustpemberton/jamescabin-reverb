@@ -36,7 +36,7 @@
   <EXPORTFORMATS>
     <VS2019 targetFolder="Builds/VisualStudio2019">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="jamescabin-reverb"/>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="jamescabin-reverb" optimisation="3"/>
         <CONFIGURATION isDebug="0" name="Release" targetName="jamescabin-reverb"/>
       </CONFIGURATIONS>
       <MODULEPATHS>

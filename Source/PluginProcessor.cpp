@@ -92,37 +92,71 @@ void JamescabinreverbAudioProcessor::changeProgramName (int index, const juce::S
 void JamescabinreverbAudioProcessor::loadFile() {
 	juce::FileChooser chooser{ "Choose an impulse response "};
 	if (chooser.browseForFileToOpen()) {
-		auto file = chooser.getResult();
-		auto* reader = audioFormatManager.createReaderFor(file);
+		irFile = chooser.getResult();
+		loadIR(irFile);
+	}
+}
 
+void JamescabinreverbAudioProcessor::loadIR(juce::File file) {
+	auto* reader = audioFormatManager.createReaderFor(irFile);
+
+	for (auto channel = 0; channel < 4; ++channel) {
+		hasInitialized[channel] = false;
+	}
+
+	if (reader != nullptr) {
+		auto channelSet = reader->getChannelLayout();
+		if (channelSet != juce::AudioChannelSet::quadraphonic()) {
+			DBG("ERR: WRONG NUMBER OF CHANNELS IN IR");
+			return;
+		}
+
+		// load in the IR
+		juce::AudioSampleBuffer temp;
+		temp.setSize(4, reader->lengthInSamples);
+		reader->read(&temp, 0, reader->lengthInSamples, 0, true, true);
+
+		double ratio = reader->sampleRate / mSampleRate;
+		DBG("RATIO IS " + std::to_string(ratio));
+
+		// resample the IR
+		irBuffer.clear();
+		irBuffer.setSize(4, (int)(reader->lengthInSamples / ratio));
 		for (auto channel = 0; channel < 4; ++channel) {
-			hasInitialized[channel] = false;
+			std::unique_ptr<juce::LagrangeInterpolator> resampler = std::make_unique<juce::LagrangeInterpolator>();
+			resampler->reset();
+			resampler->process(ratio, temp.getReadPointer(channel), irBuffer.getWritePointer(channel), irBuffer.getNumSamples());
 		}
 
-		if (reader != nullptr) {
-			auto channelSet = reader->getChannelLayout();
-			if (channelSet != juce::AudioChannelSet::quadraphonic()) {
-				DBG("ERR: WRONG NUMBER OF CHANNELS IN IR");
-				return;
-			}
-
-			irBuffer.setSize(4, reader->lengthInSamples);
-			reader->read(&irBuffer, 0, reader->lengthInSamples, 0, true, true);
-
-			for (auto channel = 0; channel < 4; ++channel) {
-				conv[channel].init(mBlockSize, irBuffer.getReadPointer(channel), irBuffer.getNumSamples());
-				hasInitialized[channel] = true;
-			}
+		// calculate convolver block sizes
+		auto headBlockSize = 1;
+		while (headBlockSize < mBlockSize) {
+			headBlockSize *= 2;
 		}
-		else {
-			DBG("error reading IR sample");
+		auto tailBlockSize = std::max(8192, 2 * headBlockSize);
+
+		// load the IRs into the convolution objects
+		for (auto channel = 0; channel < 4; ++channel) {
+			conv[channel].init(headBlockSize, tailBlockSize, irBuffer.getReadPointer(channel), irBuffer.getNumSamples());
+			hasInitialized[channel] = true;
 		}
+	}
+	else {
+		DBG("error reading IR sample");
 	}
 }
 
 //==============================================================================
 void JamescabinreverbAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+	if (mSampleRate != sampleRate) {
+		mSampleRate = sampleRate;
+		if (isInitialised()) {
+			// Reload IR
+			loadIR(irFile);
+		}
+	}
+
 	mBlockSize = samplesPerBlock;
 	wetBuffer.setSize(getTotalNumOutputChannels(), samplesPerBlock);
 }
@@ -151,6 +185,10 @@ void JamescabinreverbAudioProcessor::updateMix(float val) {
 	smoothGain.setTargetValue(val);
 }
 
+bool JamescabinreverbAudioProcessor::isInitialised() {
+	return std::find(std::begin(hasInitialized), std::end(hasInitialized), false) == std::end(hasInitialized);
+}
+
 void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -165,7 +203,7 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 	wetBuffer.clear(1, 0, wetBuffer.getNumSamples());
 	
 	auto bufferSize = buffer.getNumSamples();
-	if (std::find(std::begin(hasInitialized), std::end(hasInitialized), false) == std::end(hasInitialized)) {
+	if (isInitialised()) {
 		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {
 			juce::AudioSampleBuffer tempBuffer(2, bufferSize);
 			conv[(channel * 2) + 0].process(buffer.getWritePointer(channel), tempBuffer.getWritePointer(0), bufferSize);
