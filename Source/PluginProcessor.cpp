@@ -185,6 +185,10 @@ void JamescabinreverbAudioProcessor::updateMix(float val) {
 	smoothGain.setTargetValue(val);
 }
 
+void JamescabinreverbAudioProcessor::updatePan(float val) {
+	smoothPan.setTargetValue(val);
+}
+
 bool JamescabinreverbAudioProcessor::isInitialised() {
 	return std::find(std::begin(hasInitialized), std::end(hasInitialized), false) == std::end(hasInitialized);
 }
@@ -203,6 +207,16 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 	wetBuffer.clear(1, 0, wetBuffer.getNumSamples());
 	
 	auto bufferSize = buffer.getNumSamples();
+
+	// Input Panning
+	auto panVal = smoothPan.getNextValue();
+	auto lGain = cos(panVal			* juce::MathConstants<float>::halfPi);
+	auto rGain = cos((1.0 - panVal) * juce::MathConstants<float>::halfPi);
+	buffer.applyGain(0, 0, buffer.getNumSamples(), lGain);
+	buffer.applyGain(1, 0, buffer.getNumSamples(), rGain);
+	
+
+	// Apply Convolution
 	if (isInitialised()) {
 		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {
 			juce::AudioSampleBuffer tempBuffer(2, bufferSize);

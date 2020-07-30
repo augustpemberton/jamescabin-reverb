@@ -31,11 +31,13 @@ private:
     JamescabinreverbAudioProcessor& audioProcessor;
 
 	juce::TextButton openButton{ "Open quad IR" };
-	juce::Slider mixSlider;
 
 	juce::AudioProcessorValueTreeState& treeState;
 
+	juce::Slider mixSlider;
+	juce::Slider panSlider;
 	std::unique_ptr<SliderAttachment> mixAttachment;
+	std::unique_ptr<SliderAttachment> panAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessorEditor)
 };

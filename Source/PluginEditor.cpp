@@ -20,8 +20,12 @@ JamescabinreverbAudioProcessorEditor::JamescabinreverbAudioProcessorEditor (Jame
 	mixSlider.setSliderStyle(juce::Slider::LinearBarVertical);
 	mixAttachment.reset(new SliderAttachment(treeState, "mix", mixSlider));
 
+	panSlider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
+	panAttachment.reset(new SliderAttachment(treeState, "pan", panSlider));
+
 	addAndMakeVisible(&openButton);
 	addAndMakeVisible(&mixSlider);
+	addAndMakeVisible(&panSlider);
 
 	openButton.onClick = [&]() {
 		audioProcessor.loadFile();
@@ -29,6 +33,10 @@ JamescabinreverbAudioProcessorEditor::JamescabinreverbAudioProcessorEditor (Jame
 
 	mixSlider.onValueChange = [&]() {
 		audioProcessor.updateMix(mixSlider.getValue());
+	};
+
+	panSlider.onValueChange = [&]() {
+		audioProcessor.updatePan(panSlider.getValue());
 	};
 }
 
@@ -45,6 +53,8 @@ void JamescabinreverbAudioProcessorEditor::paint (juce::Graphics& g)
 
 void JamescabinreverbAudioProcessorEditor::resized()
 {
-	openButton.setBounds(10, 10, getWidth() / 2 - 20, getHeight() - 10);
-	mixSlider.setBounds(getWidth() / 2 + 10, 10, getWidth() / 2 - 20, getHeight() - 10);
+	auto w = getWidth() / 3;
+	panSlider.setBounds(0, 0, w, getHeight());
+	openButton.setBounds(w, 0, w, getHeight());
+	mixSlider.setBounds(w * 2, 0, w, getHeight());
 }

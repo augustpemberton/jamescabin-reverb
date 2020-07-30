@@ -58,6 +58,7 @@ public:
 
 
 	void updateMix(float val);
+	void updatePan(float val);
 
 private:
 	float mBlockSize{ 0 };
@@ -72,6 +73,7 @@ private:
 
 	float* mix{ nullptr };
 	juce::LinearSmoothedValue<float> smoothGain;
+	juce::LinearSmoothedValue<float> smoothPan;
 
 	juce::AudioProcessorValueTreeState params;
 
