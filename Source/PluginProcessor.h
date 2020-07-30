@@ -56,20 +56,22 @@ public:
 
 	void loadFile();
 
+
+	void updateMix(float val);
+
 private:
 	juce::File impulseResponseFile;
-
 	fftconvolver::FFTConvolver conv[4];
-
 	juce::AudioFormatManager audioFormatManager;
-
 	juce::AudioSampleBuffer irBuffer;
-
 	juce::AudioSampleBuffer wetBuffer;
-
 	float mBlockSize;
-
 	bool hasInitialized[4]{ false };
+
+	float* mix{ nullptr };
+	juce::LinearSmoothedValue<float> smoothGain;
+
+	juce::AudioProcessorValueTreeState params;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessor)

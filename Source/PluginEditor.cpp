@@ -10,17 +10,25 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-JamescabinreverbAudioProcessorEditor::JamescabinreverbAudioProcessorEditor (JamescabinreverbAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p)
+JamescabinreverbAudioProcessorEditor::JamescabinreverbAudioProcessorEditor (JamescabinreverbAudioProcessor& p, juce::AudioProcessorValueTreeState &vts)
+    : AudioProcessorEditor (&p), audioProcessor (p), treeState(vts)
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (400, 300);
 
+	mixSlider.setSliderStyle(juce::Slider::LinearBarVertical);
+	mixAttachment.reset(new SliderAttachment(treeState, "mix", mixSlider));
+
 	addAndMakeVisible(&openButton);
+	addAndMakeVisible(&mixSlider);
 
 	openButton.onClick = [&]() {
 		audioProcessor.loadFile();
+	};
+
+	mixSlider.onValueChange = [&]() {
+		audioProcessor.updateMix(mixSlider.getValue());
 	};
 }
 
@@ -37,5 +45,6 @@ void JamescabinreverbAudioProcessorEditor::paint (juce::Graphics& g)
 
 void JamescabinreverbAudioProcessorEditor::resized()
 {
-	openButton.setBounds(10, 10, getWidth()- 10, getHeight() - 10);
+	openButton.setBounds(10, 10, getWidth() / 2 - 20, getHeight() - 10);
+	mixSlider.setBounds(getWidth() / 2 + 10, 10, getWidth() / 2 - 20, getHeight() - 10);
 }

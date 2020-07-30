@@ -17,8 +17,9 @@
 class JamescabinreverbAudioProcessorEditor  : public juce::AudioProcessorEditor
 {
 public:
-    JamescabinreverbAudioProcessorEditor (JamescabinreverbAudioProcessor&);
+    JamescabinreverbAudioProcessorEditor (JamescabinreverbAudioProcessor&, juce::AudioProcessorValueTreeState&);
     ~JamescabinreverbAudioProcessorEditor() override;
+	typedef juce::AudioProcessorValueTreeState::SliderAttachment SliderAttachment;
 
     //==============================================================================
     void paint (juce::Graphics&) override;
@@ -30,6 +31,11 @@ private:
     JamescabinreverbAudioProcessor& audioProcessor;
 
 	juce::TextButton openButton{ "Open quad IR" };
+	juce::Slider mixSlider;
+
+	juce::AudioProcessorValueTreeState& treeState;
+
+	std::unique_ptr<SliderAttachment> mixAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessorEditor)
 };

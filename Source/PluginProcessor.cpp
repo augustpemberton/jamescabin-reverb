@@ -14,9 +14,13 @@ JamescabinreverbAudioProcessor::JamescabinreverbAudioProcessor()
 	: AudioProcessor(BusesProperties()
 		.withInput("Input", juce::AudioChannelSet::stereo(), true)
 		.withOutput("Output", juce::AudioChannelSet::stereo(), true)
-	)
+	),
+	params(*this, nullptr, juce::Identifier("Params"), {
+		//std::make_unique<juce::AudioParameterFloat>("mix", "Mix", 0.0f, 1.0f, 0.01f)
+	})
 {
 	audioFormatManager.registerBasicFormats();
+	//mix = params.getRawParameterValue("mix");
 }
 
 JamescabinreverbAudioProcessor::~JamescabinreverbAudioProcessor()
@@ -143,6 +147,10 @@ bool JamescabinreverbAudioProcessor::isBusesLayoutSupported (const BusesLayout& 
 }
 #endif
 
+void JamescabinreverbAudioProcessor::updateMix(float val) {
+	smoothGain.setTargetValue(val);
+}
+
 void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -167,13 +175,17 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 			wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(1), bufferSize, 0.1f, 0.1f);
 		}
 
+		// Equal power crossfade for decorrolated signals
+		auto mixVal = smoothGain.getNextValue();
+		auto dryGain = cos(mixVal			* juce::MathConstants<float>::halfPi);
+		auto wetGain = cos((1.0 - mixVal) * juce::MathConstants<float>::halfPi);
+		buffer.applyGain(dryGain);
+		wetBuffer.applyGain(wetGain);
 		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {
-			DBG(wetBuffer.getSample(channel, 0));
-			buffer.copyFrom(channel, 0, wetBuffer.getReadPointer(channel), bufferSize);
+			buffer.addFrom(channel, 0, wetBuffer.getReadPointer(channel), bufferSize);
 		}
 
 	}
-
 }
 
 //==============================================================================
@@ -184,7 +196,7 @@ bool JamescabinreverbAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* JamescabinreverbAudioProcessor::createEditor()
 {
-    return new JamescabinreverbAudioProcessorEditor (*this);
+    return new JamescabinreverbAudioProcessorEditor (*this, params);
 }
 
 //==============================================================================
