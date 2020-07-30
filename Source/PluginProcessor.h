@@ -78,7 +78,7 @@ private:
 	juce::AudioProcessorValueTreeState params;
 
 	juce::File irFile;
-	void JamescabinreverbAudioProcessor::loadIR(juce::File file);
+	void loadIR(juce::File file);
 
 	bool isInitialised();
 

@@ -170,8 +170,7 @@ void JamescabinreverbAudioProcessor::releaseResources()
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool JamescabinreverbAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
     if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
