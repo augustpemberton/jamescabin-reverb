@@ -29,8 +29,7 @@ private:
     // access the processor object that created it.
     JamescabinreverbAudioProcessor& audioProcessor;
 
-	juce::TextButton openButtonL{ "Open IR (L)" };
-	juce::TextButton openButtonR{ "Open IR (R)" };
+	juce::TextButton openButton{ "Open quad IR" };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessorEditor)
 };

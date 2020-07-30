@@ -85,26 +85,30 @@ void JamescabinreverbAudioProcessor::changeProgramName (int index, const juce::S
 {
 }
 
-void JamescabinreverbAudioProcessor::loadFile(int channel) {
-	juce::FileChooser chooser{ "Choose an impulse response for channel " + std::to_string(channel) };
+void JamescabinreverbAudioProcessor::loadFile() {
+	juce::FileChooser chooser{ "Choose an impulse response "};
 	if (chooser.browseForFileToOpen()) {
 		auto file = chooser.getResult();
 		auto* reader = audioFormatManager.createReaderFor(file);
 
+		for (auto channel = 0; channel < 4; ++channel) {
+			hasInitialized[channel] = false;
+		}
+
 		if (reader != nullptr) {
 			auto channelSet = reader->getChannelLayout();
-			if (channelSet != juce::AudioChannelSet::stereo()) {
+			if (channelSet != juce::AudioChannelSet::quadraphonic()) {
 				DBG("ERR: WRONG NUMBER OF CHANNELS IN IR");
 				return;
 			}
 
-			irBuffer[channel].setSize(2, reader->lengthInSamples);
-			reader->read(&irBuffer[channel], 0, reader->lengthInSamples, 0, true, true);
+			irBuffer.setSize(4, reader->lengthInSamples);
+			reader->read(&irBuffer, 0, reader->lengthInSamples, 0, true, true);
 
-			for (auto c = 0; c < getTotalNumOutputChannels(); ++c) {
-				conv[channel * 2 + c].init(mBlockSize, irBuffer[channel].getWritePointer(c), irBuffer[channel].getNumSamples());
+			for (auto channel = 0; channel < 4; ++channel) {
+				conv[channel].init(mBlockSize, irBuffer.getReadPointer(channel), irBuffer.getNumSamples());
+				hasInitialized[channel] = true;
 			}
-			hasInitialized[channel] = true;
 		}
 		else {
 			DBG("error reading IR sample");
@@ -153,14 +157,14 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 	wetBuffer.clear(1, 0, wetBuffer.getNumSamples());
 	
 	auto bufferSize = buffer.getNumSamples();
-	if (hasInitialized[0] && hasInitialized[1]) {
+	if (std::find(std::begin(hasInitialized), std::end(hasInitialized), false) == std::end(hasInitialized)) {
 		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {
 			juce::AudioSampleBuffer tempBuffer(2, bufferSize);
 			conv[(channel * 2) + 0].process(buffer.getWritePointer(channel), tempBuffer.getWritePointer(0), bufferSize);
 			conv[(channel * 2) + 1].process(buffer.getWritePointer(channel), tempBuffer.getWritePointer(1), bufferSize);
 
-			wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(0), bufferSize, 0.5f, 0.5f);
-			wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(1), bufferSize, 0.5f, 0.5f);
+			wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(0), bufferSize, 0.1f, 0.1f);
+			wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(1), bufferSize, 0.1f, 0.1f);
 		}
 
 		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {

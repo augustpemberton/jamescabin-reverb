@@ -17,15 +17,10 @@ JamescabinreverbAudioProcessorEditor::JamescabinreverbAudioProcessorEditor (Jame
     // editor's size to whatever you need it to be.
     setSize (400, 300);
 
-	addAndMakeVisible(&openButtonL);
-	addAndMakeVisible(&openButtonR);
+	addAndMakeVisible(&openButton);
 
-	openButtonL.onClick = [&]() {
-		audioProcessor.loadFile(0);
-	};
-
-	openButtonR.onClick = [&]() {
-		audioProcessor.loadFile(1);
+	openButton.onClick = [&]() {
+		audioProcessor.loadFile();
 	};
 }
 
@@ -42,6 +37,5 @@ void JamescabinreverbAudioProcessorEditor::paint (juce::Graphics& g)
 
 void JamescabinreverbAudioProcessorEditor::resized()
 {
-	openButtonL.setBounds(10, 10, getWidth() / 2 - 10, getHeight() - 10);
-	openButtonR.setBounds(getWidth() / 2 + 10, 10, getWidth() / 2 - 10, getHeight() - 10);
+	openButton.setBounds(10, 10, getWidth()- 10, getHeight() - 10);
 }

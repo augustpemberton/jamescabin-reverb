@@ -54,7 +54,7 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-	void loadFile(int channel);
+	void loadFile();
 
 private:
 	juce::File impulseResponseFile;
@@ -63,13 +63,13 @@ private:
 
 	juce::AudioFormatManager audioFormatManager;
 
-	juce::AudioSampleBuffer irBuffer[2];
+	juce::AudioSampleBuffer irBuffer;
 
 	juce::AudioSampleBuffer wetBuffer;
 
 	float mBlockSize;
 
-	bool hasInitialized[2]{ false };
+	bool hasInitialized[4]{ false };
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessor)
