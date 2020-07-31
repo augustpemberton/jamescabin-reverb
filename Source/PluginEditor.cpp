@@ -36,7 +36,7 @@ JamescabinreverbAudioProcessorEditor::JamescabinreverbAudioProcessorEditor (Jame
 	};
 
 	stretchSlider.onDragEnd = [&]() {
-		audioProcessor.stretchIR(stretchSlider.getValue());
+		audioProcessor.reloadIR();
 	};
 }
 

@@ -55,7 +55,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
 	void loadFile();
-	void stretchIR(float stretchFactor);
+	void reloadIR();
 
 private:
 	float mBlockSize{ 0 };
@@ -63,20 +63,22 @@ private:
 
 	// Convolution
 	fftconvolver::TwoStageFFTConvolver conv[4];
-	void updateConvolvers();
+	void updateConvolvers(bool force = false);
 
 	// Parameters
 	juce::AudioProcessorValueTreeState params;
-	std::atomic<float>* mix;
 	float prevMix;
-	std::atomic<float>* pan;
+	std::atomic<float>* mix;
 	float prevPan;
+	std::atomic<float>* pan;
+	std::atomic<float>* stretchFactor;
+
 
 	// File loading
 	juce::AudioFormatManager audioFormatManager;
 	juce::File irFile;
 	juce::File impulseResponseFile;
-	void loadIR(juce::File file, float stretchFactor = 1.0f);
+	void loadIR(juce::File file);
 
 	// Initialization
 	bool isIRLoaded{ false };

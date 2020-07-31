@@ -25,6 +25,7 @@ JamescabinreverbAudioProcessor::JamescabinreverbAudioProcessor()
 	audioFormatManager.registerBasicFormats();
 	mix = params.getRawParameterValue("mix");
 	pan = params.getRawParameterValue("pan");
+	stretchFactor = params.getRawParameterValue("stretch");
 }
 
 JamescabinreverbAudioProcessor::~JamescabinreverbAudioProcessor()
@@ -97,12 +98,12 @@ void JamescabinreverbAudioProcessor::loadFile() {
 	juce::FileChooser chooser{ "Choose an impulse response "};
 	if (chooser.browseForFileToOpen()) {
 		irFile = chooser.getResult();
-		isIRLoaded = false;
 		loadIR(irFile);
 	}
 }
 
-void JamescabinreverbAudioProcessor::loadIR(juce::File file, float stretchFactor) {
+void JamescabinreverbAudioProcessor::loadIR(juce::File file) {
+	isIRLoaded = false;
 	auto* reader = audioFormatManager.createReaderFor(irFile);
 
 	if (reader != nullptr) {
@@ -118,35 +119,37 @@ void JamescabinreverbAudioProcessor::loadIR(juce::File file, float stretchFactor
 		reader->read(&temp, 0, reader->lengthInSamples, 0, true, true);
 
 		double ratio = reader->sampleRate / mSampleRate;
-		DBG("RATIO IS " + std::to_string(ratio));
-		ratio *= stretchFactor;
-		DBG("RATIO + stretch IS " + std::to_string(ratio));
+		ratio *= *stretchFactor;
 
 		// resample the IR
 		irBuffer.clear();
 		int irBufferSize = static_cast<int>(reader->lengthInSamples / ratio);
-		DBG(irBufferSize);
 		irBuffer.setSize(4, irBufferSize);
 		for (auto channel = 0; channel < 4; ++channel) {
-			std::unique_ptr<juce::WindowedSincInterpolator> resampler = std::make_unique<juce::WindowedSincInterpolator>();
+			std::unique_ptr<juce::LagrangeInterpolator> resampler = std::make_unique<juce::LagrangeInterpolator>();
 			resampler->reset();
 			resampler->process(ratio, temp.getReadPointer(channel), irBuffer.getWritePointer(channel), irBuffer.getNumSamples());
 		}
 
+		updateConvolvers(true);
 		isIRLoaded = true;
-		updateConvolvers();
 	}
 	else {
 		DBG("error reading IR sample");
 	}
 }
 
-void JamescabinreverbAudioProcessor::updateConvolvers() {
-	if (!isIRLoaded) return;
+void JamescabinreverbAudioProcessor::updateConvolvers(bool force) {
+	if (!force && !isIRLoaded) return;
 
 	// calculate convolver block sizes
+	auto maxHeadSize = mBlockSize;
+	if (*stretchFactor < 1) {
+		// arbitrary 20, not sure why this works
+		maxHeadSize /= (*stretchFactor * 20);
+	}
 	auto headBlockSize = 1;
-	while (headBlockSize < mBlockSize) {
+	while (headBlockSize < maxHeadSize) {
 		headBlockSize *= 2;
 	}
 	auto tailBlockSize = std::max(8192, 2 * headBlockSize);
@@ -210,16 +213,16 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 	if (isIRLoaded) {
 		juce::AudioSampleBuffer tempBuffer(4, bufferSize);
 		for (auto channel = 0; channel < 2; ++channel) {
-			conv[channel].process(buffer.getReadPointer(0), tempBuffer.getWritePointer(channel), bufferSize);
+			conv[channel].process(buffer.getWritePointer(0), tempBuffer.getWritePointer(channel), bufferSize);
 		}
 		for (auto channel = 2; channel < 4; ++channel) {
-			conv[channel].process(buffer.getReadPointer(1), tempBuffer.getWritePointer(channel), bufferSize);
+			conv[channel].process(buffer.getWritePointer(1), tempBuffer.getWritePointer(channel), bufferSize);
 		}
 
-		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(0), bufferSize, 0.1f, 0.1f);
-		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(1), bufferSize, 0.1f, 0.1f);
-		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(2), bufferSize, 0.1f, 0.1f);
-		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(3), bufferSize, 0.1f, 0.1f);
+		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(0), bufferSize, 0.1f, 0.1f);
+		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(1), bufferSize, 0.1f, 0.1f);
+		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(2), bufferSize, 0.1f, 0.1f);
+		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(3), bufferSize, 0.1f, 0.1f);
 
 		Util::applyMix(*mix, prevMix, &buffer, &wetBuffer);
 
@@ -231,8 +234,8 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 	prevMix = *mix;
 }
 
-void JamescabinreverbAudioProcessor::stretchIR(float stretchFactor) {
-	loadIR(irFile, stretchFactor);
+void JamescabinreverbAudioProcessor::reloadIR() {
+	loadIR(irFile);
 }
 
 //==============================================================================
