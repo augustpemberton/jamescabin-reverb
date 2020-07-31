@@ -202,8 +202,7 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
         buffer.clear (i, 0, buffer.getNumSamples());
 	}
 
-	wetBuffer.clear(0, 0, wetBuffer.getNumSamples());
-	wetBuffer.clear(1, 0, wetBuffer.getNumSamples());
+	wetBuffer.clear();
 	
 	auto bufferSize = buffer.getNumSamples();
 
@@ -216,15 +215,25 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 	
 
 	// Apply Convolution
+	/* 
+		Channel 1 Left Speaker Left Microphone
+		Channel 2 Left Speaker Right Microphone
+		Channel 3 Right Speaker Left Microphone
+		Channel 4 Right Speaker Right Microphone
+	*/
 	if (isInitialised()) {
-		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {
-			juce::AudioSampleBuffer tempBuffer(2, bufferSize);
-			conv[(channel * 2) + 0].process(buffer.getWritePointer(channel), tempBuffer.getWritePointer(0), bufferSize);
-			conv[(channel * 2) + 1].process(buffer.getWritePointer(channel), tempBuffer.getWritePointer(1), bufferSize);
-
-			wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(0), bufferSize, 0.1f, 0.1f);
-			wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(1), bufferSize, 0.1f, 0.1f);
+		juce::AudioSampleBuffer tempBuffer(4, bufferSize);
+		for (auto channel = 0; channel < 2; ++channel) {
+			conv[channel].process(buffer.getWritePointer(0), tempBuffer.getWritePointer(channel), bufferSize);
 		}
+		for (auto channel = 2; channel < 4; ++channel) {
+			conv[channel].process(buffer.getWritePointer(1), tempBuffer.getWritePointer(channel), bufferSize);
+		}
+
+		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(0), bufferSize, 0.1f, 0.1f);
+		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(1), bufferSize, 0.1f, 0.1f);
+		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(2), bufferSize, 0.1f, 0.1f);
+		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(3), bufferSize, 0.1f, 0.1f);
 
 		// Equal power crossfade for decorrolated signals
 		auto mixVal = smoothGain.getNextValue();

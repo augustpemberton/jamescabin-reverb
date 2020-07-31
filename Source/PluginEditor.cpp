@@ -18,9 +18,13 @@ JamescabinreverbAudioProcessorEditor::JamescabinreverbAudioProcessorEditor (Jame
     setSize (400, 300);
 
 	mixSlider.setSliderStyle(juce::Slider::LinearBarVertical);
+	mixSlider.setRange(0.0f, 1.0f, 0.01f);
+	mixSlider.setValue(1.0f);
 	mixAttachment.reset(new SliderAttachment(treeState, "mix", mixSlider));
 
 	panSlider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
+	panSlider.setRange(0.0f, 1.0f, 0.01f);
+	panSlider.setValue(0.5f);
 	panAttachment.reset(new SliderAttachment(treeState, "pan", panSlider));
 
 	addAndMakeVisible(&openButton);
