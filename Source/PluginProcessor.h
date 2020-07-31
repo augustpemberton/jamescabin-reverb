@@ -63,12 +63,13 @@ private:
 
 	// Convolution
 	fftconvolver::TwoStageFFTConvolver conv[4];
+	void JamescabinreverbAudioProcessor::updateConvolvers();
 
 	// Parameters
 	juce::AudioProcessorValueTreeState params;
-	float* mix{ nullptr };
+	std::atomic<float>* mix;
 	float prevMix;
-	float* pan{ nullptr };
+	std::atomic<float>* pan;
 	float prevPan;
 
 	// File loading
@@ -78,8 +79,7 @@ private:
 	void loadIR(juce::File file, float stretchFactor = 1.0f);
 
 	// Initialization
-	bool isInitialised();
-	bool hasInitialized[4]{ false };
+	bool isIRLoaded{ false };
 
 	juce::AudioSampleBuffer irBuffer;
 	juce::AudioSampleBuffer wetBuffer;
