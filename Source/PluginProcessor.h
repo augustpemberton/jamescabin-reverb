@@ -55,6 +55,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
 	void loadFile();
+	void stretchIR(float stretchFactor);
 
 private:
 	float mBlockSize{ 0 };
@@ -74,14 +75,11 @@ private:
 	juce::AudioFormatManager audioFormatManager;
 	juce::File irFile;
 	juce::File impulseResponseFile;
-	void loadIR(juce::File file);
+	void loadIR(juce::File file, float stretchFactor = 1.0f);
 
 	// Initialization
 	bool isInitialised();
 	bool hasInitialized[4]{ false };
-
-	void applyPan(float pan, float prevPan, juce::AudioSampleBuffer* buffer);
-	void applyMix(float mix, float prevMix, juce::AudioSampleBuffer* dryBuffer, juce::AudioSampleBuffer* wetBuffer);
 
 	juce::AudioSampleBuffer irBuffer;
 	juce::AudioSampleBuffer wetBuffer;

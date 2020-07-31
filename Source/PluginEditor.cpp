@@ -23,12 +23,20 @@ JamescabinreverbAudioProcessorEditor::JamescabinreverbAudioProcessorEditor (Jame
 	panSlider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
 	panAttachment.reset(new SliderAttachment(treeState, "pan", panSlider));
 
+	stretchSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+	stretchAttachment.reset(new SliderAttachment(treeState, "stretch", stretchSlider));
+
 	addAndMakeVisible(&openButton);
 	addAndMakeVisible(&mixSlider);
 	addAndMakeVisible(&panSlider);
+	addAndMakeVisible(&stretchSlider);
 
 	openButton.onClick = [&]() {
 		audioProcessor.loadFile();
+	};
+
+	stretchSlider.onDragEnd = [&]() {
+		audioProcessor.stretchIR(stretchSlider.getValue());
 	};
 }
 
@@ -46,7 +54,8 @@ void JamescabinreverbAudioProcessorEditor::paint (juce::Graphics& g)
 void JamescabinreverbAudioProcessorEditor::resized()
 {
 	auto w = getWidth() / 3;
-	panSlider.setBounds(0, 0, w, getHeight());
-	openButton.setBounds(w, 0, w, getHeight());
-	mixSlider.setBounds(w * 2, 0, w, getHeight());
+	panSlider.setBounds(0, 0, w, getHeight() - 100);
+	openButton.setBounds(w, 0, w, getHeight() - 100);
+	mixSlider.setBounds(w * 2, 0, w, getHeight() - 100);
+	stretchSlider.setBounds(0, getHeight() - 100, getWidth(), 100);
 }

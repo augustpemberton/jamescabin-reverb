@@ -7,7 +7,8 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+#include "PluginEditor.h"]
+#include "Util.h"
 
 //==============================================================================
 JamescabinreverbAudioProcessor::JamescabinreverbAudioProcessor()
@@ -17,7 +18,8 @@ JamescabinreverbAudioProcessor::JamescabinreverbAudioProcessor()
 	),
 	params(*this, nullptr, juce::Identifier("Params"), {
 		std::make_unique<juce::AudioParameterFloat>("mix", "Mix", 0.0f, 1.0f, 1.0f),
-		std::make_unique<juce::AudioParameterFloat>("pan", "Pan", 0.0f, 1.0f, 0.5f)
+		std::make_unique<juce::AudioParameterFloat>("pan", "Pan", 0.0f, 1.0f, 0.5f),
+		std::make_unique<juce::AudioParameterFloat>("stretch", "IR Stretch", 0.25f, 2.5f, 1.0f)
 	})
 {
 	audioFormatManager.registerBasicFormats();
@@ -99,7 +101,7 @@ void JamescabinreverbAudioProcessor::loadFile() {
 	}
 }
 
-void JamescabinreverbAudioProcessor::loadIR(juce::File file) {
+void JamescabinreverbAudioProcessor::loadIR(juce::File file, float stretchFactor) {
 	auto* reader = audioFormatManager.createReaderFor(irFile);
 
 	for (auto channel = 0; channel < 4; ++channel) {
@@ -119,6 +121,7 @@ void JamescabinreverbAudioProcessor::loadIR(juce::File file) {
 		reader->read(&temp, 0, reader->lengthInSamples, 0, true, true);
 
 		double ratio = reader->sampleRate / mSampleRate;
+		ratio *= stretchFactor;
 		DBG("RATIO IS " + std::to_string(ratio));
 
 		// resample the IR
@@ -199,7 +202,7 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 	auto bufferSize = buffer.getNumSamples();
 
 	// Apply pre-reverb pan for true stereo
-	applyPan(*pan, prevPan, &buffer);
+	Util::applyPan(*pan, prevPan, &buffer);
 
 	// Apply Convolution
 	/* 
@@ -222,7 +225,7 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(2), bufferSize, 0.1f, 0.1f);
 		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(3), bufferSize, 0.1f, 0.1f);
 
-		applyMix(*mix, prevMix, &buffer, &wetBuffer);
+		Util::applyMix(*mix, prevMix, &buffer, &wetBuffer);
 
 		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {
 			buffer.addFrom(channel, 0, wetBuffer.getReadPointer(channel), bufferSize);
@@ -232,36 +235,8 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 	prevMix = *mix;
 }
 
-// Apply a smoothed equal power pan to a buffer
-void JamescabinreverbAudioProcessor::applyPan(float pan, float prevPan, juce::AudioSampleBuffer* buffer) {
-	auto lGain = cos(pan			* juce::MathConstants<float>::halfPi);
-	auto rGain = cos((1.0 - pan)	* juce::MathConstants<float>::halfPi);
-
-	if (pan == prevPan) {
-		buffer->applyGain(0, 0, buffer->getNumSamples(), lGain);
-		buffer->applyGain(1, 0, buffer->getNumSamples(), rGain);
-	} else {
-		auto prevLGain = cos(prevPan			* juce::MathConstants<float>::halfPi);
-		auto prevRGain = cos((1.0 - prevPan)	* juce::MathConstants<float>::halfPi);
-		buffer->applyGainRamp(0, 0, buffer->getNumSamples(), prevLGain, lGain);
-		buffer->applyGainRamp(1, 0, buffer->getNumSamples(), prevRGain, rGain);
-	}
-}
-
-// Apply a smoothed equal power dry/wet mix to a buffer
-void JamescabinreverbAudioProcessor::applyMix(float mix, float prevMix, juce::AudioSampleBuffer *dryBuffer, juce::AudioSampleBuffer *wetBuffer) {
-	auto dryGain = cos(mix * juce::MathConstants<float>::halfPi);
-	auto wetGain = cos((1.0 - mix) * juce::MathConstants<float>::halfPi);
-
-	if (mix == prevMix) {
-		dryBuffer->applyGain(dryGain);
-		wetBuffer->applyGain(wetGain);
-	} else {
-		auto prevDryGain = cos(prevMix * juce::MathConstants<float>::halfPi);
-		auto prevWetGain = cos((1.0 - prevMix) * juce::MathConstants<float>::halfPi);
-		dryBuffer->applyGainRamp(0, dryBuffer->getNumSamples(), prevDryGain, dryGain);
-		wetBuffer->applyGainRamp(0, wetBuffer->getNumSamples(), prevWetGain, wetGain);
-	}
+void JamescabinreverbAudioProcessor::stretchIR(float stretchFactor) {
+	loadIR(irFile, stretchFactor);
 }
 
 //==============================================================================
@@ -278,15 +253,18 @@ juce::AudioProcessorEditor* JamescabinreverbAudioProcessor::createEditor()
 //==============================================================================
 void JamescabinreverbAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
+	auto state = params.copyState();
+	std::unique_ptr<juce::XmlElement> xml (state.createXml());
+	copyXmlToBinary (*xml, destData);
 }
 
 void JamescabinreverbAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
+	std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
+ 
+	if (xmlState.get() != nullptr)
+		if (xmlState->hasTagName (params.state.getType()))
+			params.replaceState (juce::ValueTree::fromXml (*xmlState));
 }
 
 //==============================================================================

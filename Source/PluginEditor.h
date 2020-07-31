@@ -36,8 +36,10 @@ private:
 
 	juce::Slider mixSlider;
 	juce::Slider panSlider;
+	juce::Slider stretchSlider;
 	std::unique_ptr<SliderAttachment> mixAttachment;
 	std::unique_ptr<SliderAttachment> panAttachment;
+	std::unique_ptr<SliderAttachment> stretchAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessorEditor)
 };
