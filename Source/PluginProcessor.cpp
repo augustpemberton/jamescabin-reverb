@@ -16,11 +16,13 @@ JamescabinreverbAudioProcessor::JamescabinreverbAudioProcessor()
 		.withOutput("Output", juce::AudioChannelSet::stereo(), true)
 	),
 	params(*this, nullptr, juce::Identifier("Params"), {
-		//std::make_unique<juce::AudioParameterFloat>("mix", "Mix", 0.0f, 1.0f, 0.01f)
+		std::make_unique<juce::AudioParameterFloat>("mix", "Mix", 0.0f, 1.0f, 1.0f),
+		std::make_unique<juce::AudioParameterFloat>("pan", "Pan", 0.0f, 1.0f, 0.5f)
 	})
 {
 	audioFormatManager.registerBasicFormats();
-	//mix = params.getRawParameterValue("mix");
+	mix = params.getRawParameterValue("mix");
+	pan = params.getRawParameterValue("pan");
 }
 
 JamescabinreverbAudioProcessor::~JamescabinreverbAudioProcessor()
@@ -180,14 +182,6 @@ bool JamescabinreverbAudioProcessor::isBusesLayoutSupported (const BusesLayout& 
 }
 #endif
 
-void JamescabinreverbAudioProcessor::updateMix(float val) {
-	smoothGain.setTargetValue(val);
-}
-
-void JamescabinreverbAudioProcessor::updatePan(float val) {
-	smoothPan.setTargetValue(val);
-}
-
 bool JamescabinreverbAudioProcessor::isInitialised() {
 	return std::find(std::begin(hasInitialized), std::end(hasInitialized), false) == std::end(hasInitialized);
 }
@@ -198,21 +192,14 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-	for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i) {
+	for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
-	}
 
 	wetBuffer.clear();
-	
 	auto bufferSize = buffer.getNumSamples();
 
-	// Input Panning
-	auto panVal = smoothPan.getNextValue();
-	auto lGain = cos(panVal			* juce::MathConstants<float>::halfPi);
-	auto rGain = cos((1.0 - panVal) * juce::MathConstants<float>::halfPi);
-	buffer.applyGain(0, 0, buffer.getNumSamples(), lGain);
-	buffer.applyGain(1, 0, buffer.getNumSamples(), rGain);
-	
+	// Apply pre-reverb pan for true stereo
+	applyPan(*pan, prevPan, &buffer);
 
 	// Apply Convolution
 	/* 
@@ -235,16 +222,45 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(2), bufferSize, 0.1f, 0.1f);
 		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(3), bufferSize, 0.1f, 0.1f);
 
-		// Equal power crossfade for decorrolated signals
-		auto mixVal = smoothGain.getNextValue();
-		auto dryGain = cos(mixVal			* juce::MathConstants<float>::halfPi);
-		auto wetGain = cos((1.0 - mixVal) * juce::MathConstants<float>::halfPi);
-		buffer.applyGain(dryGain);
-		wetBuffer.applyGain(wetGain);
+		applyMix(*mix, prevMix, &buffer, &wetBuffer);
+
 		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {
 			buffer.addFrom(channel, 0, wetBuffer.getReadPointer(channel), bufferSize);
 		}
+	}
+	prevPan = *pan;
+	prevMix = *mix;
+}
 
+// Apply a smoothed equal power pan to a buffer
+void JamescabinreverbAudioProcessor::applyPan(float pan, float prevPan, juce::AudioSampleBuffer* buffer) {
+	auto lGain = cos(pan			* juce::MathConstants<float>::halfPi);
+	auto rGain = cos((1.0 - pan)	* juce::MathConstants<float>::halfPi);
+
+	if (pan == prevPan) {
+		buffer->applyGain(0, 0, buffer->getNumSamples(), lGain);
+		buffer->applyGain(1, 0, buffer->getNumSamples(), rGain);
+	} else {
+		auto prevLGain = cos(prevPan			* juce::MathConstants<float>::halfPi);
+		auto prevRGain = cos((1.0 - prevPan)	* juce::MathConstants<float>::halfPi);
+		buffer->applyGainRamp(0, 0, buffer->getNumSamples(), prevLGain, lGain);
+		buffer->applyGainRamp(1, 0, buffer->getNumSamples(), prevRGain, rGain);
+	}
+}
+
+// Apply a smoothed equal power dry/wet mix to a buffer
+void JamescabinreverbAudioProcessor::applyMix(float mix, float prevMix, juce::AudioSampleBuffer *dryBuffer, juce::AudioSampleBuffer *wetBuffer) {
+	auto dryGain = cos(mix * juce::MathConstants<float>::halfPi);
+	auto wetGain = cos((1.0 - mix) * juce::MathConstants<float>::halfPi);
+
+	if (mix == prevMix) {
+		dryBuffer->applyGain(dryGain);
+		wetBuffer->applyGain(wetGain);
+	} else {
+		auto prevDryGain = cos(prevMix * juce::MathConstants<float>::halfPi);
+		auto prevWetGain = cos((1.0 - prevMix) * juce::MathConstants<float>::halfPi);
+		dryBuffer->applyGainRamp(0, dryBuffer->getNumSamples(), prevDryGain, dryGain);
+		wetBuffer->applyGainRamp(0, wetBuffer->getNumSamples(), prevWetGain, wetGain);
 	}
 }
 

@@ -56,32 +56,35 @@ public:
 
 	void loadFile();
 
-
-	void updateMix(float val);
-	void updatePan(float val);
-
 private:
 	float mBlockSize{ 0 };
 	float mSampleRate{ 0 };
 
-	juce::File impulseResponseFile;
+	// Convolution
 	fftconvolver::TwoStageFFTConvolver conv[4];
-	juce::AudioFormatManager audioFormatManager;
-	juce::AudioSampleBuffer irBuffer;
-	juce::AudioSampleBuffer wetBuffer;
-	bool hasInitialized[4]{ false };
 
-	float* mix{ nullptr };
-	juce::LinearSmoothedValue<float> smoothGain;
-	juce::LinearSmoothedValue<float> smoothPan;
-
+	// Parameters
 	juce::AudioProcessorValueTreeState params;
+	float* mix{ nullptr };
+	float prevMix;
+	float* pan{ nullptr };
+	float prevPan;
 
+	// File loading
+	juce::AudioFormatManager audioFormatManager;
 	juce::File irFile;
+	juce::File impulseResponseFile;
 	void loadIR(juce::File file);
 
+	// Initialization
 	bool isInitialised();
+	bool hasInitialized[4]{ false };
 
+	void applyPan(float pan, float prevPan, juce::AudioSampleBuffer* buffer);
+	void applyMix(float mix, float prevMix, juce::AudioSampleBuffer* dryBuffer, juce::AudioSampleBuffer* wetBuffer);
+
+	juce::AudioSampleBuffer irBuffer;
+	juce::AudioSampleBuffer wetBuffer;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessor)
 };
