@@ -63,7 +63,7 @@ private:
 
 	// Convolution
 	fftconvolver::TwoStageFFTConvolver conv[4];
-	void JamescabinreverbAudioProcessor::updateConvolvers();
+	void updateConvolvers();
 
 	// Parameters
 	juce::AudioProcessorValueTreeState params;
