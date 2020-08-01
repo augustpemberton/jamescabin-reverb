@@ -62,8 +62,14 @@ private:
 	float mSampleRate{ 0 };
 
 	// Convolution
-	fftconvolver::TwoStageFFTConvolver conv[4];
-	void updateConvolvers(bool force = false);
+	std::vector<juce::dsp::Convolution> conv;
+	void loadConvolvers(juce::File irFile);
+	enum SplitIRType
+	{
+		LEFT_MIC,
+		RIGHT_MIC
+	};
+	juce::AudioSampleBuffer splitQuadIR(juce::AudioSampleBuffer quadIRBuffer, SplitIRType type);
 
 	// Parameters
 	juce::AudioProcessorValueTreeState params;
@@ -73,17 +79,15 @@ private:
 	std::atomic<float>* pan;
 	std::atomic<float>* stretchFactor;
 
-
 	// File loading
 	juce::AudioFormatManager audioFormatManager;
 	juce::File irFile;
 	juce::File impulseResponseFile;
-	void loadIR(juce::File file);
+	juce::AudioSampleBuffer loadIR(juce::File file);
 
 	// Initialization
 	bool isIRLoaded{ false };
 
-	juce::AudioSampleBuffer irBuffer;
 	juce::AudioSampleBuffer wetBuffer;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessor)

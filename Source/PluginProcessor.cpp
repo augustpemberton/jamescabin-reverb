@@ -20,7 +20,8 @@ JamescabinreverbAudioProcessor::JamescabinreverbAudioProcessor()
 		std::make_unique<juce::AudioParameterFloat>("mix", "Mix", 0.0f, 1.0f, 1.0f),
 		std::make_unique<juce::AudioParameterFloat>("pan", "Pan", 0.0f, 1.0f, 0.5f),
 		std::make_unique<juce::AudioParameterFloat>("stretch", "IR Stretch", 0.1f, 2.5f, 1.0f)
-	})
+	}),
+	conv(2)
 {
 	audioFormatManager.registerBasicFormats();
 	mix = params.getRawParameterValue("mix");
@@ -98,19 +99,18 @@ void JamescabinreverbAudioProcessor::loadFile() {
 	juce::FileChooser chooser{ "Choose an impulse response "};
 	if (chooser.browseForFileToOpen()) {
 		irFile = chooser.getResult();
-		loadIR(irFile);
+		loadConvolvers(irFile);
 	}
 }
 
-void JamescabinreverbAudioProcessor::loadIR(juce::File file) {
-	isIRLoaded = false;
-	auto* reader = audioFormatManager.createReaderFor(irFile);
+juce::AudioSampleBuffer JamescabinreverbAudioProcessor::loadIR(juce::File file) {
+	auto* reader = audioFormatManager.createReaderFor(file);
 
 	if (reader != nullptr) {
 		auto channelSet = reader->getChannelLayout();
 		if (channelSet != juce::AudioChannelSet::quadraphonic()) {
 			DBG("ERR: WRONG NUMBER OF CHANNELS IN IR");
-			return;
+			// TODO catch this error better
 		}
 
 		// load in the IR
@@ -118,29 +118,27 @@ void JamescabinreverbAudioProcessor::loadIR(juce::File file) {
 		temp.setSize(4, reader->lengthInSamples);
 		reader->read(&temp, 0, reader->lengthInSamples, 0, true, true);
 
+		// calculate resample + stretch ratio
 		double ratio = reader->sampleRate / mSampleRate;
 		ratio *= *stretchFactor;
 
 		// resample the IR
-		irBuffer.clear();
-		int irBufferSize = static_cast<int>(reader->lengthInSamples / ratio);
-		irBuffer.setSize(4, irBufferSize);
+		juce::AudioSampleBuffer irBuffer (4, reader->lengthInSamples / ratio);
 		for (auto channel = 0; channel < 4; ++channel) {
 			std::unique_ptr<juce::LagrangeInterpolator> resampler = std::make_unique<juce::LagrangeInterpolator>();
 			resampler->reset();
 			resampler->process(ratio, temp.getReadPointer(channel), irBuffer.getWritePointer(channel), irBuffer.getNumSamples());
 		}
 
-		updateConvolvers(true);
-		isIRLoaded = true;
+		return irBuffer;
 	}
 	else {
 		DBG("error reading IR sample");
 	}
 }
 
-void JamescabinreverbAudioProcessor::updateConvolvers(bool force) {
-	if (!force && !isIRLoaded) return;
+void JamescabinreverbAudioProcessor::loadConvolvers(juce::File irFile) {
+	isIRLoaded = false;
 
 	// calculate convolver block sizes
 	auto headBlockSize = 1;
@@ -149,10 +147,37 @@ void JamescabinreverbAudioProcessor::updateConvolvers(bool force) {
 	}
 	auto tailBlockSize = std::max(8192, 2 * headBlockSize);
 
+	juce::AudioSampleBuffer irBuffer = loadIR(irFile);
+
 	// load the IRs into the convolution objects
-	for (auto channel = 0; channel < 4; ++channel) {
-		conv[channel].init(headBlockSize, tailBlockSize, irBuffer.getReadPointer(channel), irBuffer.getNumSamples());
+	conv[0].loadImpulseResponse(
+		splitQuadIR(irBuffer, SplitIRType::LEFT_MIC),
+		mSampleRate,
+		juce::dsp::Convolution::Stereo::yes,
+		juce::dsp::Convolution::Trim::no,
+		juce::dsp::Convolution::Normalise::no
+	);
+	conv[1].loadImpulseResponse(
+		splitQuadIR(irBuffer, SplitIRType::RIGHT_MIC),
+		mSampleRate,
+		juce::dsp::Convolution::Stereo::yes,
+		juce::dsp::Convolution::Trim::no,
+		juce::dsp::Convolution::Normalise::no
+	);
+
+	isIRLoaded = true;
+}
+
+juce::AudioSampleBuffer JamescabinreverbAudioProcessor::splitQuadIR(juce::AudioSampleBuffer quadIRBuffer, SplitIRType type) {
+	juce::AudioSampleBuffer b(2, quadIRBuffer.getNumSamples());
+	if (type == SplitIRType::LEFT_MIC) {
+		b.copyFrom(0, 0, quadIRBuffer.getReadPointer(0), quadIRBuffer.getNumSamples());
+		b.copyFrom(1, 0, quadIRBuffer.getReadPointer(2), quadIRBuffer.getNumSamples());
+	} else {
+		b.copyFrom(0, 0, quadIRBuffer.getReadPointer(1), quadIRBuffer.getNumSamples());
+		b.copyFrom(1, 0, quadIRBuffer.getReadPointer(3), quadIRBuffer.getNumSamples());
 	}
+	return b;
 }
 
 //==============================================================================
@@ -161,7 +186,13 @@ void JamescabinreverbAudioProcessor::prepareToPlay (double sampleRate, int sampl
 	mBlockSize = samplesPerBlock;
 	mSampleRate = sampleRate;
 	wetBuffer.setSize(getTotalNumOutputChannels(), samplesPerBlock);
-	updateConvolvers();
+	juce::dsp::ProcessSpec spec;
+	spec.maximumBlockSize = samplesPerBlock;
+	spec.sampleRate = sampleRate;
+	spec.numChannels = 2;
+	for (auto channel = 0; channel < 2; ++channel) {
+		conv[channel].prepare(spec);
+	}
 }
 
 void JamescabinreverbAudioProcessor::releaseResources()
@@ -206,19 +237,24 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 		Channel 4 Right Speaker Right Microphone
 	*/
 	if (isIRLoaded) {
-		juce::AudioSampleBuffer tempBuffer(4, bufferSize);
-		for (auto channel = 0; channel < 2; ++channel) {
-			conv[channel].process(buffer.getWritePointer(0), tempBuffer.getWritePointer(channel), bufferSize);
-		}
-		for (auto channel = 2; channel < 4; ++channel) {
-			conv[channel].process(buffer.getWritePointer(1), tempBuffer.getWritePointer(channel), bufferSize);
-		}
 
-		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(0), bufferSize, 0.1f, 0.1f);
-		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(1), bufferSize, 0.1f, 0.1f);
-		wetBuffer.addFromWithRamp(0, 0, tempBuffer.getReadPointer(2), bufferSize, 0.1f, 0.1f);
-		wetBuffer.addFromWithRamp(1, 0, tempBuffer.getReadPointer(3), bufferSize, 0.1f, 0.1f);
+		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {
+			// input block
+			juce::AudioSampleBuffer inputBuffer(2, bufferSize);
+			inputBuffer.copyFrom(0, 0, buffer.getReadPointer(channel), bufferSize);
+			inputBuffer.copyFrom(1, 0, buffer.getReadPointer(channel), bufferSize);
+			juce::dsp::AudioBlock<float> inputBlock(inputBuffer);
 
+			// output block
+			juce::AudioSampleBuffer tempBuffer (2, bufferSize);
+			juce::dsp::AudioBlock<float> outputBlock (tempBuffer);
+
+			juce::dsp::ProcessContextNonReplacing<float> context (inputBlock, outputBlock);
+			conv[channel].process(context);
+			wetBuffer.addFrom(0, 0, tempBuffer.getReadPointer(0), bufferSize, 0.1);
+			wetBuffer.addFrom(1, 0, tempBuffer.getReadPointer(1), bufferSize, 0.1);
+		}
+	
 		Util::applyMix(*mix, prevMix, &buffer, &wetBuffer);
 
 		for (auto channel = 0; channel < totalNumOutputChannels; ++channel) {
@@ -230,7 +266,7 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 }
 
 void JamescabinreverbAudioProcessor::reloadIR() {
-	loadIR(irFile);
+	loadConvolvers(irFile);
 }
 
 //==============================================================================
@@ -267,3 +303,4 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new JamescabinreverbAudioProcessor();
 }
+
