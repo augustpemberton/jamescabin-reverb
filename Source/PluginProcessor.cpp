@@ -143,13 +143,8 @@ void JamescabinreverbAudioProcessor::updateConvolvers(bool force) {
 	if (!force && !isIRLoaded) return;
 
 	// calculate convolver block sizes
-	auto maxHeadSize = mBlockSize;
-	if (*stretchFactor < 1) {
-		// arbitrary 20, not sure why this works
-		maxHeadSize /= (*stretchFactor * 20);
-	}
 	auto headBlockSize = 1;
-	while (headBlockSize < maxHeadSize) {
+	while (headBlockSize < mBlockSize) {
 		headBlockSize *= 2;
 	}
 	auto tailBlockSize = std::max(8192, 2 * headBlockSize);
