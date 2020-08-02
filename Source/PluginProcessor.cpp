@@ -7,7 +7,7 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"]
+#include "PluginEditor.h"
 #include "Util.h"
 
 //==============================================================================
@@ -16,17 +16,20 @@ JamescabinreverbAudioProcessor::JamescabinreverbAudioProcessor()
 		.withInput("Input", juce::AudioChannelSet::stereo(), true)
 		.withOutput("Output", juce::AudioChannelSet::stereo(), true)
 	),
+    lConv(juce::dsp::Convolution::NonUniform{512}),
+    rConv(juce::dsp::Convolution::NonUniform{512}),
 	params(*this, nullptr, juce::Identifier("Params"), {
 		std::make_unique<juce::AudioParameterFloat>("mix", "Mix", 0.0f, 1.0f, 1.0f),
 		std::make_unique<juce::AudioParameterFloat>("pan", "Pan", 0.0f, 1.0f, 0.5f),
 		std::make_unique<juce::AudioParameterFloat>("stretch", "IR Stretch", 0.1f, 2.5f, 1.0f)
-	}),
-	conv(2)
+	})
 {
 	audioFormatManager.registerBasicFormats();
 	mix = params.getRawParameterValue("mix");
 	pan = params.getRawParameterValue("pan");
 	stretchFactor = params.getRawParameterValue("stretch");
+    conv.push_back(&lConv);
+    conv.push_back(&rConv);
 }
 
 JamescabinreverbAudioProcessor::~JamescabinreverbAudioProcessor()
@@ -115,8 +118,8 @@ juce::AudioSampleBuffer JamescabinreverbAudioProcessor::loadIR(juce::File file) 
 
 		// load in the IR
 		juce::AudioSampleBuffer temp;
-		temp.setSize(4, reader->lengthInSamples);
-		reader->read(&temp, 0, reader->lengthInSamples, 0, true, true);
+		temp.setSize(4, static_cast<int>(reader->lengthInSamples));
+		reader->read(&temp, 0, static_cast<int>(reader->lengthInSamples), 0, true, true);
 
 		// calculate resample + stretch ratio
 		double ratio = reader->sampleRate / mSampleRate;
@@ -150,14 +153,14 @@ void JamescabinreverbAudioProcessor::loadConvolvers(juce::File irFile) {
 	juce::AudioSampleBuffer irBuffer = loadIR(irFile);
 
 	// load the IRs into the convolution objects
-	conv[0].loadImpulseResponse(
+	lConv.loadImpulseResponse(
 		splitQuadIR(irBuffer, SplitIRType::LEFT_MIC),
 		mSampleRate,
 		juce::dsp::Convolution::Stereo::yes,
 		juce::dsp::Convolution::Trim::no,
 		juce::dsp::Convolution::Normalise::no
 	);
-	conv[1].loadImpulseResponse(
+	rConv.loadImpulseResponse(
 		splitQuadIR(irBuffer, SplitIRType::RIGHT_MIC),
 		mSampleRate,
 		juce::dsp::Convolution::Stereo::yes,
@@ -191,7 +194,7 @@ void JamescabinreverbAudioProcessor::prepareToPlay (double sampleRate, int sampl
 	spec.sampleRate = sampleRate;
 	spec.numChannels = 2;
 	for (auto channel = 0; channel < 2; ++channel) {
-		conv[channel].prepare(spec);
+		conv[channel]->prepare(spec);
 	}
 }
 
@@ -250,7 +253,7 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 			juce::dsp::AudioBlock<float> outputBlock (tempBuffer);
 
 			juce::dsp::ProcessContextNonReplacing<float> context (inputBlock, outputBlock);
-			conv[channel].process(context);
+			conv[channel]->process(context);
 			wetBuffer.addFrom(0, 0, tempBuffer.getReadPointer(0), bufferSize, 0.1);
 			wetBuffer.addFrom(1, 0, tempBuffer.getReadPointer(1), bufferSize, 0.1);
 		}

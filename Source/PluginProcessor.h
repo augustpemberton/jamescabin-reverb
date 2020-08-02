@@ -62,7 +62,10 @@ private:
 	float mSampleRate{ 0 };
 
 	// Convolution
-	std::vector<juce::dsp::Convolution> conv;
+    juce::dsp::Convolution lConv;
+    juce::dsp::Convolution rConv;
+    std::vector<juce::dsp::Convolution*> conv;
+
 	void loadConvolvers(juce::File irFile);
 	enum SplitIRType
 	{
