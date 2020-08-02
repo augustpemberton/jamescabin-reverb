@@ -16,12 +16,12 @@ JamescabinreverbAudioProcessor::JamescabinreverbAudioProcessor()
 		.withInput("Input", juce::AudioChannelSet::stereo(), true)
 		.withOutput("Output", juce::AudioChannelSet::stereo(), true)
 	),
-    lConv(juce::dsp::Convolution::NonUniform{512}),
-    rConv(juce::dsp::Convolution::NonUniform{512}),
+    lConv(juce::dsp::Convolution::NonUniform{2048}),
+    rConv(juce::dsp::Convolution::NonUniform{2048}),
 	params(*this, nullptr, juce::Identifier("Params"), {
 		std::make_unique<juce::AudioParameterFloat>("mix", "Mix", 0.0f, 1.0f, 1.0f),
 		std::make_unique<juce::AudioParameterFloat>("pan", "Pan", 0.0f, 1.0f, 0.5f),
-		std::make_unique<juce::AudioParameterFloat>("stretch", "IR Stretch", 0.1f, 2.5f, 1.0f)
+		std::make_unique<juce::AudioParameterFloat>("stretch", "IR Stretch", 0.3f, 2.5f, 1.0f)
 	})
 {
 	audioFormatManager.registerBasicFormats();
