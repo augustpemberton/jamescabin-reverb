@@ -107,7 +107,7 @@ void JamescabinreverbAudioProcessor::loadFile() {
 }
 
 juce::AudioSampleBuffer JamescabinreverbAudioProcessor::loadIR(juce::File file) {
-	auto* reader = audioFormatManager.createReaderFor(file);
+	std::unique_ptr<juce::AudioFormatReader> reader (audioFormatManager.createReaderFor(file));
 
 	if (reader != nullptr) {
 		auto channelSet = reader->getChannelLayout();
