@@ -269,7 +269,9 @@ void JamescabinreverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 }
 
 void JamescabinreverbAudioProcessor::reloadIR() {
-	loadConvolvers(irFile);
+	if (irFile.exists()) {
+		loadConvolvers(irFile);
+	}
 }
 
 //==============================================================================

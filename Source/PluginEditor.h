@@ -10,6 +10,7 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "JCKnob.h"
 
 //==============================================================================
 /**
@@ -34,12 +35,15 @@ private:
 
 	juce::AudioProcessorValueTreeState& treeState;
 
-	juce::Slider mixSlider;
-	juce::Slider panSlider;
-	juce::Slider stretchSlider;
+	JCKnob mixSlider{ JCKnob::ValueType::Unsigned };
+	JCKnob panSlider{ JCKnob::ValueType::Signed };
+	JCKnob stretchSlider{ JCKnob::ValueType::Unsigned };
 	std::unique_ptr<SliderAttachment> mixAttachment;
 	std::unique_ptr<SliderAttachment> panAttachment;
 	std::unique_ptr<SliderAttachment> stretchAttachment;
+
+	JCDesign jcDesign;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JamescabinreverbAudioProcessorEditor)
 };

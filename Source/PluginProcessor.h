@@ -10,6 +10,7 @@
 
 #include <JuceHeader.h>
 #include "FFTConvolver-non-uniform/TwoStageFFTConvolver.h"
+#include "JCDesign.h"
 
 //==============================================================================
 /**

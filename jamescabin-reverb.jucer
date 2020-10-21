@@ -5,6 +5,8 @@
               companyName="jamescabin">
   <MAINGROUP id="tzRxpL" name="jamescabin-reverb">
     <GROUP id="{0278CD14-F3EF-6D81-5BBB-7019058B4C86}" name="Source">
+      <FILE id="Cl5CN6" name="JCDesign.h" compile="0" resource="0" file="Source/JCDesign.h"/>
+      <FILE id="p4olBz" name="JCKnob.h" compile="0" resource="0" file="Source/JCKnob.h"/>
       <FILE id="Plf0QE" name="Util.cpp" compile="1" resource="0" file="Source/Util.cpp"/>
       <FILE id="D3QqNf" name="Util.h" compile="0" resource="0" file="Source/Util.h"/>
       <FILE id="QfTs77" name="PluginProcessor.cpp" compile="1" resource="0"
