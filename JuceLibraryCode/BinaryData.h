@@ -8,6 +8,9 @@
 
 namespace BinaryData
 {
+    extern const char*   DIN_otf;
+    const int            DIN_otfSize = 27480;
+
     extern const char*   COPYING_txt;
     const int            COPYING_txtSize = 1053;
 
@@ -15,7 +18,7 @@ namespace BinaryData
     const int            README_mdSize = 420;
 
     // Number of elements in the namedResourceList and originalFileNames arrays.
-    const int namedResourceListSize = 2;
+    const int namedResourceListSize = 3;
 
     // Points to the start of a list of resource names.
     extern const char* namedResourceList[];

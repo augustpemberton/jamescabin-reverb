@@ -19,8 +19,8 @@ JamescabinreverbAudioProcessorEditor::JamescabinreverbAudioProcessorEditor (Jame
 	setResizeLimits(300, 300, 1500, 1500);
 	getConstrainer()->setFixedAspectRatio(1);
     setSize (700, 700);
-	
-	setLookAndFeel(&jcDesign);
+
+	JCDesign::setDefaultLookAndFeel(&jcDesign);
 
 	mixSlider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
 	mixSlider.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
@@ -87,14 +87,11 @@ void JamescabinreverbAudioProcessorEditor::resized()
 	auto w = getWidth();
 	auto h = getHeight();
 
-	auto pW = getWidth() / 20;
-	auto pH = getHeight() / 20;
+	auto pW = getWidth() / 15;
+	auto pH = getHeight() / 15;
 
 	auto col = (w - (cols+1)*pW) / cols;
 	auto row = (h - (rows+1)*pH) / rows;
-
-	DBG(col);
-	DBG(row);
 
 	panSlider.setBounds		(pW,			pH+2*(pH+row),	col, row);
 	stretchSlider.setBounds	(pW+(pW+col),	pH+2*(pH+row),	col, row);

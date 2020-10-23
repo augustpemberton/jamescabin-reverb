@@ -19,8 +19,10 @@ public:
 	};
 
 	ValueType valueType;
+	juce::String knobName;
 
-	JCKnob(JCKnob::ValueType _valueType) : Slider() {
+	JCKnob(juce::String _knobName, JCKnob::ValueType _valueType) : Slider() {
 		valueType = _valueType;
+		knobName = _knobName;
 	}
 };

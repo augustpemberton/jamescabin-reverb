@@ -35,9 +35,9 @@ private:
 
 	juce::AudioProcessorValueTreeState& treeState;
 
-	JCKnob mixSlider{ JCKnob::ValueType::Unsigned };
-	JCKnob panSlider{ JCKnob::ValueType::Signed };
-	JCKnob stretchSlider{ JCKnob::ValueType::Unsigned };
+	JCKnob mixSlider{"MIX", JCKnob::ValueType::Unsigned };
+	JCKnob panSlider{"PAN", JCKnob::ValueType::Signed };
+	JCKnob stretchSlider{"STRETCH", JCKnob::ValueType::Unsigned };
 	std::unique_ptr<SliderAttachment> mixAttachment;
 	std::unique_ptr<SliderAttachment> panAttachment;
 	std::unique_ptr<SliderAttachment> stretchAttachment;
